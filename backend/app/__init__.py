@@ -12,7 +12,7 @@ def create_app() -> Flask:
 
     app.config["JSON_SORT_KEYS"] = False
     app.config["SECRET_KEY"] = settings.jwt_secret_key
-    CORS(app, resources={r"/api/*": {"origins": ["https://plungrank-crm.vercel.app"]}})
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     register_routes(app)
     register_error_handlers(app)
