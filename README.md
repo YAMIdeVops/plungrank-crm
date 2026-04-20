@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CRM PlungRank
 
 CRM comercial voltado para captação, acompanhamento e conversão de leads, com foco em operação organizada, rastreabilidade do funil e aplicação consistente de regras de negócio.
@@ -58,23 +59,6 @@ Copie `frontend/.env.example` para `frontend/.env.local`.
 4. Subir a API Flask
 5. Subir o front Next.js
 
-## Comandos
-
-### Back-end
-
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python scripts/seed_master_user.py
-flask --app run.py --debug run
-```
-
-### Front-end
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
+# plungrank-crm
+CRM focado em prospecção, gestão de leads e análise de performance comercial, com rastreamento completo do funil de vendas e métricas de conversão.
+>>>>>>> 44abd3a9e77e93d0ad304d6f5ff
