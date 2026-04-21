@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "@/shared/ui/metric-card";
 import { PageHeader } from "@/shared/ui/page-header";
 import { apiFetch } from "@/shared/api/http";
+import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 
 type DashboardMetrics = {
   total_leads: number;
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const hasFilters = Boolean(periodoInicio || periodoFim);
   const periodLabel = useMemo(() => {
@@ -29,22 +31,37 @@ export default function DashboardPage() {
 
   async function loadMetrics() {
     setLoading(true);
+    setError("");
     const params = new URLSearchParams();
     if (periodoInicio) params.set("periodo_inicio", periodoInicio);
     if (periodoFim) params.set("periodo_fim", periodoFim);
-    const response = await apiFetch<DashboardMetrics>(`/dashboard/metrics?${params.toString()}`);
-    setMetrics(response);
-    setLoading(false);
+    try {
+      const response = await apiFetch<DashboardMetrics>(`/dashboard/metrics?${params.toString()}`);
+      setMetrics(response);
+    } catch (err) {
+      setError(getFriendlyErrorMessage(err, "Não foi possível carregar o dashboard."));
+      setMetrics(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function clearFilters() {
     setPeriodoInicio("");
     setPeriodoFim("");
     setLoading(true);
-    void apiFetch<DashboardMetrics>("/dashboard/metrics").then((response) => {
-      setMetrics(response);
-      setLoading(false);
-    });
+    setError("");
+    void apiFetch<DashboardMetrics>("/dashboard/metrics")
+      .then((response) => {
+        setMetrics(response);
+      })
+      .catch((err) => {
+        setError(getFriendlyErrorMessage(err, "Não foi possível carregar o dashboard."));
+        setMetrics(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }
 
   useEffect(() => {
@@ -105,6 +122,8 @@ export default function DashboardPage() {
         />
         <MetricCard label="Vendas realizadas" value={metrics?.total_vendas_realizadas ?? 0} />
       </section>
+
+      {error ? <div className="feedback error">{error}</div> : null}
     </>
   );
 }
