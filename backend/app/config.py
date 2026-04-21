@@ -13,6 +13,8 @@ class Settings:
     database_pool_min_size: int
     database_pool_max_size: int
     database_pool_timeout: int
+    database_pool_max_idle: int
+    database_pool_max_lifetime: int
     supabase_url: str
     supabase_key: str
     supabase_service_role_key: str
@@ -29,6 +31,8 @@ def get_settings() -> Settings:
         database_pool_min_size=int(os.getenv("DATABASE_POOL_MIN_SIZE", "1")),
         database_pool_max_size=int(os.getenv("DATABASE_POOL_MAX_SIZE", "10")),
         database_pool_timeout=int(os.getenv("DATABASE_POOL_TIMEOUT", "30")),
+        database_pool_max_idle=int(os.getenv("DATABASE_POOL_MAX_IDLE", "300")),
+        database_pool_max_lifetime=int(os.getenv("DATABASE_POOL_MAX_LIFETIME", "1800")),
         supabase_url=os.getenv("SUPABASE_URL", ""),
         supabase_key=os.getenv("SUPABASE_KEY", ""),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),

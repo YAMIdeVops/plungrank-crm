@@ -41,98 +41,101 @@ class LeadService(BaseService):
         return self.get_one("id_lead", lead_id)
 
     def create_lead(self, payload: dict, user_id: str) -> dict:
-        require_fields(
-            payload,
-            [
-                "nome_contato",
-                "nome_empresa",
-                "telefone",
-                "nicho",
-                "fonte_lead",
-                "estado",
-                "tem_site",
-                "data_cadastro",
-            ],
-        )
-        telefone = normalize_phone(payload["telefone"])
-        self._ensure_unique_phone(telefone)
-        fonte_lead = self._resolve_lead_source(payload["fonte_lead"])
-        data_cadastro = parse_date(payload["data_cadastro"], "data_cadastro")
-        ensure_not_future(data_cadastro, "data_cadastro")
-        instagram = normalize_text(payload.get("instagram"), "--") or "--"
-        duplicate_instagram = None
-        if instagram != "--":
-            duplicate_instagram = self._find_duplicate_instagram(instagram)
-
-        situacao = self._resolve_lead_situation(payload.get("situacao", "Novo"))
-        if canonical_text_key(situacao) == canonical_text_key("Em prospecção"):
-            raise AppError("Lead só pode ser criado como Em prospecção após existir tentativa de contato.")
-        if canonical_text_key(situacao) == canonical_text_key("Cliente"):
-            raise AppError("Lead só pode ser criado como Cliente após existir venda registrada.")
-
-        response = self.db.fetch_one(
-            """
-            insert into leads (
-              nome_contato, nome_empresa, telefone, instagram, nicho, fonte_lead,
-              situacao, estado, tem_site, data_cadastro
+        with self.db.transaction():
+            require_fields(
+                payload,
+                [
+                    "nome_contato",
+                    "nome_empresa",
+                    "telefone",
+                    "nicho",
+                    "fonte_lead",
+                    "estado",
+                    "tem_site",
+                    "data_cadastro",
+                ],
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            returning *
-            """,
-            [
-                normalize_text(payload["nome_contato"]),
-                normalize_text(payload["nome_empresa"]),
-                telefone,
-                instagram,
-                normalize_text(payload["nicho"]),
-                fonte_lead,
-                situacao,
-                validate_state(payload["estado"]),
-                self._normalize_tem_site(payload["tem_site"]),
-                data_cadastro.isoformat(),
-            ],
-        )
-        if duplicate_instagram:
-            response["alerta_instagram"] = "Instagram já existe em outro lead. Cadastro permitido com alerta."
-        return response
+            telefone = normalize_phone(payload["telefone"])
+            self._ensure_unique_phone(telefone)
+            fonte_lead = self._resolve_lead_source(payload["fonte_lead"])
+            data_cadastro = parse_date(payload["data_cadastro"], "data_cadastro")
+            ensure_not_future(data_cadastro, "data_cadastro")
+            instagram = normalize_text(payload.get("instagram"), "--") or "--"
+            duplicate_instagram = None
+            if instagram != "--":
+                duplicate_instagram = self._find_duplicate_instagram(instagram)
+
+            situacao = self._resolve_lead_situation(payload.get("situacao", "Novo"))
+            if canonical_text_key(situacao) == canonical_text_key("Em prospecção"):
+                raise AppError("Lead só pode ser criado como Em prospecção após existir tentativa de contato.")
+            if canonical_text_key(situacao) == canonical_text_key("Cliente"):
+                raise AppError("Lead só pode ser criado como Cliente após existir venda registrada.")
+
+            response = self.db.fetch_one(
+                """
+                insert into leads (
+                  nome_contato, nome_empresa, telefone, instagram, nicho, fonte_lead,
+                  situacao, estado, tem_site, data_cadastro
+                )
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                returning *
+                """,
+                [
+                    normalize_text(payload["nome_contato"]),
+                    normalize_text(payload["nome_empresa"]),
+                    telefone,
+                    instagram,
+                    normalize_text(payload["nicho"]),
+                    fonte_lead,
+                    situacao,
+                    validate_state(payload["estado"]),
+                    self._normalize_tem_site(payload["tem_site"]),
+                    data_cadastro.isoformat(),
+                ],
+            )
+            if duplicate_instagram:
+                response["alerta_instagram"] = "Instagram já existe em outro lead. Cadastro permitido com alerta."
+            return response
 
     def update_lead(self, lead_id: int, payload: dict) -> dict:
-        lead = self.get_lead(lead_id)
-        update_data = {}
+        with self.db.transaction():
+            lead = self.get_lead(lead_id)
+            update_data = {}
 
-        if "data_cadastro" in payload:
-            raise AppError("Data de cadastro do lead não pode ser alterada.")
+            if "data_cadastro" in payload:
+                raise AppError("Data de cadastro do lead não pode ser alterada.")
 
-        if "nome_contato" in payload:
-            update_data["nome_contato"] = normalize_text(payload["nome_contato"])
-        if "nome_empresa" in payload:
-            update_data["nome_empresa"] = normalize_text(payload["nome_empresa"])
-        if "instagram" in payload:
-            update_data["instagram"] = normalize_text(payload["instagram"], "--") or "--"
-        if "nicho" in payload:
-            update_data["nicho"] = normalize_text(payload["nicho"])
-        if "fonte_lead" in payload:
-            update_data["fonte_lead"] = self._resolve_lead_source(payload["fonte_lead"])
-        if "situacao" in payload:
-            new_status = self._resolve_lead_situation(payload["situacao"])
-            self._validate_manual_situation_change(lead, new_status)
-            update_data["situacao"] = new_status
-        if "estado" in payload:
-            update_data["estado"] = validate_state(payload["estado"])
-        if "tem_site" in payload:
-            update_data["tem_site"] = self._normalize_tem_site(payload["tem_site"])
+            if "nome_contato" in payload:
+                update_data["nome_contato"] = normalize_text(payload["nome_contato"])
+            if "nome_empresa" in payload:
+                update_data["nome_empresa"] = normalize_text(payload["nome_empresa"])
+            if "instagram" in payload:
+                update_data["instagram"] = normalize_text(payload["instagram"], "--") or "--"
+            if "nicho" in payload:
+                update_data["nicho"] = normalize_text(payload["nicho"])
+            if "fonte_lead" in payload:
+                update_data["fonte_lead"] = self._resolve_lead_source(payload["fonte_lead"])
+            if "situacao" in payload:
+                new_status = self._resolve_lead_situation(payload["situacao"])
+                self._validate_manual_situation_change(lead, new_status)
+                update_data["situacao"] = new_status
+            if "estado" in payload:
+                update_data["estado"] = validate_state(payload["estado"])
+            if "tem_site" in payload:
+                update_data["tem_site"] = self._normalize_tem_site(payload["tem_site"])
 
-        return self.update_by_id("id_lead", lead_id, update_data)
+            return self.update_by_id("id_lead", lead_id, update_data)
 
     def delete_lead(self, lead_id: int) -> None:
-        lead = self.get_lead(lead_id)
-        if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
-            raise AppError("Lead só pode ser excluído quando estiver Inativo.")
-        with self.db.connection() as conn, conn.cursor() as cur:
-            cur.execute("delete from vendas where id_lead = %s", [lead_id])
-            cur.execute("delete from reuniao where id_lead = %s", [lead_id])
-            cur.execute("delete from tentativa_contato where id_lead = %s", [lead_id])
-            cur.execute("delete from leads where id_lead = %s", [lead_id])
+        with self.db.transaction() as conn:
+            lead = self.get_lead(lead_id)
+            if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
+                raise AppError("Lead só pode ser excluído quando estiver Inativo.")
+            with conn.cursor() as cur:
+                cur.execute("delete from vendas where id_lead = %s", [lead_id])
+                cur.execute("delete from reuniao where id_lead = %s", [lead_id])
+                cur.execute("delete from tentativa_contato where id_lead = %s", [lead_id])
+                cur.execute("delete from leads where id_lead = %s", [lead_id])
 
     def update_situation(self, lead_id: int, new_status: str) -> None:
         resolved_status = self._resolve_lead_situation(new_status)
@@ -190,8 +193,7 @@ class LeadService(BaseService):
             raise AppError("Lead inativo não pode receber novos registros de tentativa, reunião ou venda.")
 
     def _ensure_unique_phone(self, phone: str) -> None:
-        result = self.db.fetch_optional("select id_lead from leads where telefone = %s limit 1", [phone])
-        if result:
+        if self.db.exists("select 1 from leads where telefone = %s limit 1", [phone]):
             raise AppError("Telefone já cadastrado.")
 
     def _find_duplicate_instagram(self, instagram: str):

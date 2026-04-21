@@ -37,91 +37,92 @@ class AttemptService(BaseService):
         return self.db.fetch_all(sql, params)
 
     def create_attempt(self, payload: dict, user_id: str) -> dict:
-        require_fields(payload, ["id_lead", "data_tentativa", "modalidade", "canal", "status"])
-        lead = self.lead_service.get_lead(payload["id_lead"])
-        self.lead_service.ensure_allows_new_related_records(lead)
+        with self.db.transaction():
+            require_fields(payload, ["id_lead", "data_tentativa", "modalidade", "canal", "status"])
+            lead = self.lead_service.get_lead(payload["id_lead"])
+            self.lead_service.ensure_allows_new_related_records(lead)
 
-        data_tentativa = parse_date(payload["data_tentativa"], "data_tentativa")
-        ensure_not_future(data_tentativa, "data_tentativa")
-        self._ensure_date_after_lead(lead["data_cadastro"], data_tentativa)
+            data_tentativa = parse_date(payload["data_tentativa"], "data_tentativa")
+            ensure_not_future(data_tentativa, "data_tentativa")
+            self._ensure_date_after_lead(lead["data_cadastro"], data_tentativa)
 
-        modalidade = self._resolve_allowed_option(payload["modalidade"], ATTEMPT_MODALITIES, "modalidade")
-        canal = self._resolve_allowed_option(payload["canal"], ATTEMPT_CHANNELS, "canal")
-        status = self._resolve_allowed_option(payload["status"], ATTEMPT_STATUS, "status")
+            modalidade = self._resolve_allowed_option(payload["modalidade"], ATTEMPT_MODALITIES, "modalidade")
+            canal = self._resolve_allowed_option(payload["canal"], ATTEMPT_CHANNELS, "canal")
+            status = self._resolve_allowed_option(payload["status"], ATTEMPT_STATUS, "status")
 
-        self._validate_channel_modality(canal, modalidade)
-        self._validate_terminal_history(lead["id_lead"])
+            self._validate_channel_modality(canal, modalidade)
+            self._validate_terminal_history(lead["id_lead"])
 
-        response = self.db.fetch_one(
-            """
-            insert into tentativa_contato (id_lead, data_tentativa, modalidade, canal, status)
-            values (%s, %s, %s, %s, %s)
-            returning *
-            """,
-            [lead["id_lead"], data_tentativa.isoformat(), modalidade, canal, status],
-        )
+            response = self.db.fetch_one(
+                """
+                insert into tentativa_contato (id_lead, data_tentativa, modalidade, canal, status)
+                values (%s, %s, %s, %s, %s)
+                returning *
+                """,
+                [lead["id_lead"], data_tentativa.isoformat(), modalidade, canal, status],
+            )
 
-        if canonical_text_key(lead["situacao"]) == canonical_text_key("Novo"):
-            self.lead_service.update_situation(lead["id_lead"], "Em prospecção")
-        if canonical_text_key(status) == canonical_text_key("Não tem interesse"):
-            self.lead_service.update_situation(lead["id_lead"], "Inativo")
-        if canonical_text_key(status) == canonical_text_key("Reunião Marcada"):
-            response["notification"] = "Necessário registrar uma reunião para este lead."
-        if canonical_text_key(status) == canonical_text_key("Venda realizada"):
-            response["notification"] = "Necessário registrar uma venda para este lead."
-        return response
+            if canonical_text_key(lead["situacao"]) == canonical_text_key("Novo"):
+                self.lead_service.update_situation(lead["id_lead"], "Em prospecção")
+            if canonical_text_key(status) == canonical_text_key("Não tem interesse"):
+                self.lead_service.update_situation(lead["id_lead"], "Inativo")
+            if canonical_text_key(status) == canonical_text_key("Reunião Marcada"):
+                response["notification"] = "Necessário registrar uma reunião para este lead."
+            if canonical_text_key(status) == canonical_text_key("Venda realizada"):
+                response["notification"] = "Necessário registrar uma venda para este lead."
+            return response
 
     def update_attempt(self, attempt_id: int, payload: dict) -> dict:
-        attempt = self.get_one("id_tentativa", attempt_id)
-        if "data_tentativa" in payload and payload["data_tentativa"] != attempt["data_tentativa"]:
-            raise AppError("Data da tentativa não pode ser alterada.")
-        if "canal" in payload and payload["canal"] != attempt["canal"]:
-            raise AppError("Canal da tentativa não pode ser alterado.")
-        if "modalidade" in payload and payload["modalidade"] != attempt["modalidade"]:
-            raise AppError("Modalidade da tentativa não pode ser alterada.")
-        if "status" not in payload:
-            raise AppError("Apenas atualização de status é suportada.")
+        with self.db.transaction():
+            attempt = self.get_one("id_tentativa", attempt_id)
+            if "data_tentativa" in payload and payload["data_tentativa"] != attempt["data_tentativa"]:
+                raise AppError("Data da tentativa não pode ser alterada.")
+            if "canal" in payload and payload["canal"] != attempt["canal"]:
+                raise AppError("Canal da tentativa não pode ser alterado.")
+            if "modalidade" in payload and payload["modalidade"] != attempt["modalidade"]:
+                raise AppError("Modalidade da tentativa não pode ser alterada.")
+            if "status" not in payload:
+                raise AppError("Apenas atualização de status é suportada.")
 
-        current_status = attempt["status"]
-        new_status = self._resolve_allowed_option(payload["status"], ATTEMPT_STATUS, "status")
-        if canonical_text_key(current_status) == canonical_text_key("Venda realizada"):
-            raise AppError("Tentativa com venda realizada não pode ser alterada.")
-        if canonical_text_key(current_status) in {
-            canonical_text_key("Proposta Recusada"),
-            canonical_text_key("Não tem interesse"),
-        } and canonical_text_key(new_status) == canonical_text_key("Venda realizada"):
-            raise AppError("Crie uma nova tentativa antes de marcar venda realizada.")
+            current_status = attempt["status"]
+            new_status = self._resolve_allowed_option(payload["status"], ATTEMPT_STATUS, "status")
+            if canonical_text_key(current_status) == canonical_text_key("Venda realizada"):
+                raise AppError("Tentativa com venda realizada não pode ser alterada.")
+            if canonical_text_key(current_status) in {
+                canonical_text_key("Proposta Recusada"),
+                canonical_text_key("Não tem interesse"),
+            } and canonical_text_key(new_status) == canonical_text_key("Venda realizada"):
+                raise AppError("Crie uma nova tentativa antes de marcar venda realizada.")
 
-        allowed = self._allowed_next_statuses(current_status)
-        if canonical_text_key(new_status) not in {canonical_text_key(status) for status in allowed}:
-            raise AppError("Transição de status da tentativa não é permitida.")
+            allowed = self._allowed_next_statuses(current_status)
+            if canonical_text_key(new_status) not in {canonical_text_key(status) for status in allowed}:
+                raise AppError("Transição de status da tentativa não é permitida.")
 
-        response = self.db.fetch_one(
-            "update tentativa_contato set status = %s where id_tentativa = %s returning *",
-            [new_status, attempt_id],
-        )
-        if canonical_text_key(new_status) == canonical_text_key("Não tem interesse"):
-            self.lead_service.update_situation(attempt["id_lead"], "Inativo")
-        if canonical_text_key(new_status) == canonical_text_key("Reunião Marcada"):
-            response["notification"] = "Necessário registrar uma reunião para este lead."
-        if canonical_text_key(new_status) == canonical_text_key("Venda realizada"):
-            response["notification"] = "Necessário registrar uma venda para este lead."
-        return response
+            response = self.db.fetch_one(
+                "update tentativa_contato set status = %s where id_tentativa = %s returning *",
+                [new_status, attempt_id],
+            )
+            if canonical_text_key(new_status) == canonical_text_key("Não tem interesse"):
+                self.lead_service.update_situation(attempt["id_lead"], "Inativo")
+            if canonical_text_key(new_status) == canonical_text_key("Reunião Marcada"):
+                response["notification"] = "Necessário registrar uma reunião para este lead."
+            if canonical_text_key(new_status) == canonical_text_key("Venda realizada"):
+                response["notification"] = "Necessário registrar uma venda para este lead."
+            return response
 
     def delete_attempt(self, attempt_id: int) -> None:
-        attempt = self.get_one("id_tentativa", attempt_id)
-        lead = self.lead_service.get_lead(attempt["id_lead"])
-        if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
-            raise AppError("Tentativa registrada só pode ser excluída quando o lead estiver Inativo.")
-        self.db.execute("delete from tentativa_contato where id_tentativa = %s", [attempt_id])
-        self.lead_service.refresh_situation_from_history(attempt["id_lead"])
+        with self.db.transaction():
+            attempt = self.get_one("id_tentativa", attempt_id)
+            lead = self.lead_service.get_lead(attempt["id_lead"])
+            if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
+                raise AppError("Tentativa registrada só pode ser excluída quando o lead estiver Inativo.")
+            self.db.execute("delete from tentativa_contato where id_tentativa = %s", [attempt_id])
+            self.lead_service.refresh_situation_from_history(attempt["id_lead"])
 
     def has_attempt_for_lead(self, lead_id: int) -> bool:
-        return bool(
-            self.db.fetch_optional(
-                "select id_tentativa from tentativa_contato where id_lead = %s limit 1",
-                [lead_id],
-            )
+        return self.db.exists(
+            "select 1 from tentativa_contato where id_lead = %s limit 1",
+            [lead_id],
         )
 
     def _validate_channel_modality(self, channel: str, modality: str) -> None:

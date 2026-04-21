@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from contextvars import ContextVar
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -9,6 +10,7 @@ from app.core.errors import AppError
 
 class DatabaseService:
     _pool: ConnectionPool | None = None
+    _active_connection: ContextVar = ContextVar("active_db_connection", default=None)
 
     @property
     def database_url(self) -> str:
@@ -29,6 +31,8 @@ class DatabaseService:
                     min_size=settings.database_pool_min_size,
                     max_size=settings.database_pool_max_size,
                     timeout=settings.database_pool_timeout,
+                    max_idle=settings.database_pool_max_idle,
+                    max_lifetime=settings.database_pool_max_lifetime,
                     kwargs={"row_factory": dict_row},
                     open=True,
                 )
@@ -40,6 +44,11 @@ class DatabaseService:
 
     @contextmanager
     def connection(self):
+        active_connection = self._active_connection.get()
+        if active_connection is not None:
+            yield active_connection
+            return
+
         try:
             pool = self.get_pool()
             with pool.connection() as conn:
@@ -49,6 +58,31 @@ class DatabaseService:
         except Exception as exc:
             raise AppError(f"Falha na conexao com o banco: {exc}", 500) from exc
 
+    @contextmanager
+    def transaction(self):
+        active_connection = self._active_connection.get()
+        if active_connection is not None:
+            yield active_connection
+            return
+
+        try:
+            pool = self.get_pool()
+            with pool.connection() as conn:
+                token = self._active_connection.set(conn)
+                try:
+                    yield conn
+                finally:
+                    self._active_connection.reset(token)
+        except AppError:
+            raise
+        except Exception as exc:
+            raise AppError(f"Falha na conexao com o banco: {exc}", 500) from exc
+
+    @contextmanager
+    def cursor(self):
+        with self.connection() as conn, conn.cursor() as cur:
+            yield cur
+
     @classmethod
     def close_pool(cls) -> None:
         if cls._pool is not None:
@@ -56,7 +90,7 @@ class DatabaseService:
             cls._pool = None
 
     def fetch_all(self, sql: str, params: list | tuple | None = None) -> list[dict]:
-        with self.connection() as conn, conn.cursor() as cur:
+        with self.cursor() as cur:
             cur.execute(sql, params or [])
             return list(cur.fetchall())
 
@@ -66,7 +100,7 @@ class DatabaseService:
         params: list | tuple | None = None,
         not_found_message: str = "Registro nao encontrado.",
     ) -> dict:
-        with self.connection() as conn, conn.cursor() as cur:
+        with self.cursor() as cur:
             cur.execute(sql, params or [])
             row = cur.fetchone()
             if not row:
@@ -74,16 +108,19 @@ class DatabaseService:
             return row
 
     def fetch_optional(self, sql: str, params: list | tuple | None = None) -> dict | None:
-        with self.connection() as conn, conn.cursor() as cur:
+        with self.cursor() as cur:
             cur.execute(sql, params or [])
             return cur.fetchone()
 
     def execute(self, sql: str, params: list | tuple | None = None) -> None:
-        with self.connection() as conn, conn.cursor() as cur:
+        with self.cursor() as cur:
             cur.execute(sql, params or [])
 
     def scalar(self, sql: str, params: list | tuple | None = None):
-        with self.connection() as conn, conn.cursor() as cur:
+        with self.cursor() as cur:
             cur.execute(sql, params or [])
             row = cur.fetchone()
             return None if not row else next(iter(row.values()))
+
+    def exists(self, sql: str, params: list | tuple | None = None) -> bool:
+        return bool(self.fetch_optional(sql, params))

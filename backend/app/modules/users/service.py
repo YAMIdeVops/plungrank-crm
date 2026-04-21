@@ -68,68 +68,71 @@ class UserService(BaseService):
         raise AppError("Usuário não encontrado.", 404)
 
     def create_user(self, payload: dict) -> dict:
-        require_fields(payload, ["nome", "email", "password", "perfil", "status"])
-        email = normalize_email(payload["email"])
-        validate_email(email)
-        password = normalize_text(payload["password"])
-        validate_password(password)
-        perfil = self._normalize_profile(payload["perfil"])
-        status = normalize_text(payload["status"]).upper()
-        perfil = validate_enum(perfil, USER_PROFILES, "perfil")
-        status = validate_enum(status, USER_STATUS, "status")
-        self._ensure_email_available(email)
-        inserted = self.db.fetch_one(
-            """
-            insert into usuarios (nome_usuario, email, senha_hash, perfil, status_usuario)
-            values (%s, %s, %s, %s, %s)
-            returning *
-            """,
-            [
-                normalize_text(payload["nome"]),
-                email,
-                hash_password(password),
-                PROFILE_TO_DB[perfil],
-                STATUS_TO_DB[status],
-            ],
-        )
-        return self.serialize_user(self._normalize_db_user(inserted))
-
-    def update_user(self, user_id: str, payload: dict, current_user: dict) -> dict:
-        user = self.get_by_id(user_id)
-        self._ensure_can_manage_target(current_user, user)
-        update_data = {}
-
-        if "nome" in payload:
-            update_data["nome_usuario"] = normalize_text(payload["nome"])
-        if "email" in payload:
+        with self.db.transaction():
+            require_fields(payload, ["nome", "email", "password", "perfil", "status"])
             email = normalize_email(payload["email"])
             validate_email(email)
-            if email != user["email"]:
-                self._ensure_email_available(email)
-            update_data["email"] = email
-        if "perfil" in payload:
-            perfil = self._normalize_profile(payload["perfil"])
-            perfil = validate_enum(perfil, USER_PROFILES, "perfil")
-            update_data["perfil"] = PROFILE_TO_DB[perfil]
-        if "status" in payload:
-            status = normalize_text(payload["status"]).upper()
-            status = validate_enum(status, USER_STATUS, "status")
-            update_data["status_usuario"] = STATUS_TO_DB[status]
-        if "password" in payload:
             password = normalize_text(payload["password"])
             validate_password(password)
-            update_data["senha_hash"] = hash_password(password)
+            perfil = self._normalize_profile(payload["perfil"])
+            status = normalize_text(payload["status"]).upper()
+            perfil = validate_enum(perfil, USER_PROFILES, "perfil")
+            status = validate_enum(status, USER_STATUS, "status")
+            self._ensure_email_available(email)
+            inserted = self.db.fetch_one(
+                """
+                insert into usuarios (nome_usuario, email, senha_hash, perfil, status_usuario)
+                values (%s, %s, %s, %s, %s)
+                returning *
+                """,
+                [
+                    normalize_text(payload["nome"]),
+                    email,
+                    hash_password(password),
+                    PROFILE_TO_DB[perfil],
+                    STATUS_TO_DB[status],
+                ],
+            )
+            return self.serialize_user(self._normalize_db_user(inserted))
 
-        updated = self.update_by_id("id_usuario", user["id"], update_data)
-        return self.serialize_user(self._normalize_db_user(updated))
+    def update_user(self, user_id: str, payload: dict, current_user: dict) -> dict:
+        with self.db.transaction():
+            user = self.get_by_id(user_id)
+            self._ensure_can_manage_target(current_user, user)
+            update_data = {}
+
+            if "nome" in payload:
+                update_data["nome_usuario"] = normalize_text(payload["nome"])
+            if "email" in payload:
+                email = normalize_email(payload["email"])
+                validate_email(email)
+                if email != user["email"]:
+                    self._ensure_email_available(email)
+                update_data["email"] = email
+            if "perfil" in payload:
+                perfil = self._normalize_profile(payload["perfil"])
+                perfil = validate_enum(perfil, USER_PROFILES, "perfil")
+                update_data["perfil"] = PROFILE_TO_DB[perfil]
+            if "status" in payload:
+                status = normalize_text(payload["status"]).upper()
+                status = validate_enum(status, USER_STATUS, "status")
+                update_data["status_usuario"] = STATUS_TO_DB[status]
+            if "password" in payload:
+                password = normalize_text(payload["password"])
+                validate_password(password)
+                update_data["senha_hash"] = hash_password(password)
+
+            updated = self.update_by_id("id_usuario", user["id"], update_data)
+            return self.serialize_user(self._normalize_db_user(updated))
 
     def delete_user(self, user_id: str, current_user: dict) -> dict:
-        user = self.get_by_id(user_id)
-        self._ensure_can_manage_target(current_user, user)
-        if user["id"] == current_user["id"]:
-            raise AppError("Você não pode excluir o próprio usuário.")
-        self.db.execute("delete from usuarios where id_usuario = %s", [user["id"]])
-        return {"message": "Usuário excluído com sucesso."}
+        with self.db.transaction():
+            user = self.get_by_id(user_id)
+            self._ensure_can_manage_target(current_user, user)
+            if user["id"] == current_user["id"]:
+                raise AppError("Você não pode excluir o próprio usuário.")
+            self.db.execute("delete from usuarios where id_usuario = %s", [user["id"]])
+            return {"message": "Usuário excluído com sucesso."}
 
     def serialize_user(self, user: dict) -> dict:
         return {
@@ -158,8 +161,7 @@ class UserService(BaseService):
         }
 
     def _ensure_email_available(self, email: str) -> None:
-        result = self.db.fetch_optional("select id_usuario from usuarios where email = %s limit 1", [email])
-        if result:
+        if self.db.exists("select 1 from usuarios where email = %s limit 1", [email]):
             raise AppError("E-mail já está em uso.")
 
     def _ensure_can_manage_target(self, current_user: dict, target_user: dict) -> None:
