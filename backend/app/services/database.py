@@ -33,7 +33,9 @@ class DatabaseService:
                     timeout=settings.database_pool_timeout,
                     max_idle=settings.database_pool_max_idle,
                     max_lifetime=settings.database_pool_max_lifetime,
-                    kwargs={"row_factory": dict_row},
+                    # Supabase pooler/PgBouncer can error on reused prepared statement names
+                    # when psycopg automatic preparation is enabled.
+                    kwargs={"row_factory": dict_row, "prepare_threshold": None},
                     open=True,
                 )
             except AppError:
