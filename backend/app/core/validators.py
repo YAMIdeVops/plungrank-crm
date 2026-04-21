@@ -3,7 +3,7 @@ import re
 
 from .constants import BRAZILIAN_STATES
 from .errors import AppError
-from .formatters import normalize_text
+from .formatters import canonical_text_key, normalize_text
 
 
 def require_fields(data: dict, fields: list[str]) -> None:
@@ -15,9 +15,12 @@ def require_fields(data: dict, fields: list[str]) -> None:
             raise AppError(f"Campo obrigatorio vazio: {field}.")
 
 
-def validate_enum(value: str, allowed: set[str], field_name: str) -> None:
-    if value not in allowed:
-        raise AppError(f"Valor invalido para {field_name}.")
+def validate_enum(value: str, allowed: set[str], field_name: str) -> str:
+    candidate_key = canonical_text_key(value)
+    for option in allowed:
+        if canonical_text_key(option) == candidate_key:
+            return option
+    raise AppError(f"Valor invalido para {field_name}.")
 
 
 def parse_date(value, field_name: str) -> date:

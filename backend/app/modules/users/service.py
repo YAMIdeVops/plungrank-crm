@@ -51,7 +51,7 @@ class UserService(BaseService):
         user = self.db.fetch_one(
             "select * from usuarios where id_usuario = %s limit 1",
             [user_id],
-            not_found_message="UsuÃ¡rio nÃ£o encontrado.",
+            not_found_message="Usuário não encontrado.",
         )
         return self._normalize_db_user(user)
 
@@ -65,7 +65,7 @@ class UserService(BaseService):
             return self._normalize_db_user(user)
         if local_master and email == local_master["email"]:
             return local_master
-        raise AppError("UsuÃ¡rio nÃ£o encontrado.", 404)
+        raise AppError("Usuário não encontrado.", 404)
 
     def create_user(self, payload: dict) -> dict:
         require_fields(payload, ["nome", "email", "password", "perfil", "status"])
@@ -75,8 +75,8 @@ class UserService(BaseService):
         validate_password(password)
         perfil = self._normalize_profile(payload["perfil"])
         status = normalize_text(payload["status"]).upper()
-        validate_enum(perfil, USER_PROFILES, "perfil")
-        validate_enum(status, USER_STATUS, "status")
+        perfil = validate_enum(perfil, USER_PROFILES, "perfil")
+        status = validate_enum(status, USER_STATUS, "status")
         self._ensure_email_available(email)
         inserted = self.db.fetch_one(
             """
@@ -109,11 +109,11 @@ class UserService(BaseService):
             update_data["email"] = email
         if "perfil" in payload:
             perfil = self._normalize_profile(payload["perfil"])
-            validate_enum(perfil, USER_PROFILES, "perfil")
+            perfil = validate_enum(perfil, USER_PROFILES, "perfil")
             update_data["perfil"] = PROFILE_TO_DB[perfil]
         if "status" in payload:
             status = normalize_text(payload["status"]).upper()
-            validate_enum(status, USER_STATUS, "status")
+            status = validate_enum(status, USER_STATUS, "status")
             update_data["status_usuario"] = STATUS_TO_DB[status]
         if "password" in payload:
             password = normalize_text(payload["password"])
@@ -127,7 +127,7 @@ class UserService(BaseService):
         user = self.get_by_id(user_id)
         self._ensure_can_manage_target(current_user, user)
         if user["id"] == current_user["id"]:
-            raise AppError("Voce nao pode excluir o proprio usuario.")
+            raise AppError("Você não pode excluir o próprio usuário.")
         self.db.execute("delete from usuarios where id_usuario = %s", [user["id"]])
         return {"message": "Usuário excluído com sucesso."}
 
@@ -160,7 +160,7 @@ class UserService(BaseService):
     def _ensure_email_available(self, email: str) -> None:
         result = self.db.fetch_optional("select id_usuario from usuarios where email = %s limit 1", [email])
         if result:
-            raise AppError("E-mail jÃ¡ estÃ¡ em uso.")
+            raise AppError("E-mail já está em uso.")
 
     def _ensure_can_manage_target(self, current_user: dict, target_user: dict) -> None:
         if current_user["perfil"] != "ADMIN":

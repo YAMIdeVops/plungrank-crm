@@ -40,12 +40,15 @@ class AttemptService(BaseService):
         require_fields(payload, ["id_lead", "data_tentativa", "modalidade", "canal", "status"])
         lead = self.lead_service.get_lead(payload["id_lead"])
         self.lead_service.ensure_allows_new_related_records(lead)
+
         data_tentativa = parse_date(payload["data_tentativa"], "data_tentativa")
         ensure_not_future(data_tentativa, "data_tentativa")
         self._ensure_date_after_lead(lead["data_cadastro"], data_tentativa)
+
         modalidade = self._resolve_allowed_option(payload["modalidade"], ATTEMPT_MODALITIES, "modalidade")
         canal = self._resolve_allowed_option(payload["canal"], ATTEMPT_CHANNELS, "canal")
         status = self._resolve_allowed_option(payload["status"], ATTEMPT_STATUS, "status")
+
         self._validate_channel_modality(canal, modalidade)
         self._validate_terminal_history(lead["id_lead"])
 
@@ -109,7 +112,7 @@ class AttemptService(BaseService):
         attempt = self.get_one("id_tentativa", attempt_id)
         lead = self.lead_service.get_lead(attempt["id_lead"])
         if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
-            raise AppError("Tentativa registrada so pode ser excluida quando o lead estiver Inativo.")
+            raise AppError("Tentativa registrada só pode ser excluída quando o lead estiver Inativo.")
         self.db.execute("delete from tentativa_contato where id_tentativa = %s", [attempt_id])
         self.lead_service.refresh_situation_from_history(attempt["id_lead"])
 

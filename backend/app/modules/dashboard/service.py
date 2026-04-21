@@ -42,7 +42,7 @@ class DashboardService:
                 period_start,
                 period_end,
                 period_end,
-                "Em prospecÃ§Ã£o",
+                "Em prospecção",
                 period_start,
                 period_start,
                 period_end,

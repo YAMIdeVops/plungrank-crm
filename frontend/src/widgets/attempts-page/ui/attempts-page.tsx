@@ -11,7 +11,7 @@ import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
 
-const STATUS_MEETING = "ReuniÃ£o Marcada";
+const STATUS_MEETING = "Reunião Marcada";
 
 const initialForm = {
   id_lead: "",
@@ -30,7 +30,7 @@ const channelOptions = [
   { value: "Visita presencial", label: "Visita presencial" },
   { value: "Instagram", label: "Instagram" },
   { value: "WhatsApp", label: "WhatsApp" },
-  { value: "LigaÃ§Ã£o", label: "Ligação" },
+  { value: "Ligação", label: "Ligação" },
 ];
 
 const attemptStatusOptions = [
@@ -39,12 +39,17 @@ const attemptStatusOptions = [
   { value: STATUS_MEETING, label: "Reunião marcada" },
   { value: "Proposta Enviada", label: "Proposta enviada" },
   { value: "Proposta Recusada", label: "Proposta recusada" },
-  { value: "NÃ£o tem interesse", label: "Não tem interesse" },
+  { value: "Não tem interesse", label: "Não tem interesse" },
   { value: "Venda realizada", label: "Venda realizada" },
 ];
 
 function canonicalTextKey(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ÃƒÃ‚]/g, "").toLowerCase().trim();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ÃƒÃ‚]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function getLeadLabel(lead?: Lead) {

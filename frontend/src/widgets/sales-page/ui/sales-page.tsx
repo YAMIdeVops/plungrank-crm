@@ -12,7 +12,7 @@ import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
 
-const CALL_ORIGIN = "LigaÃ§Ã£o";
+const CALL_ORIGIN = "Ligação";
 
 const initialSale = {
   id_lead: "",
@@ -36,7 +36,7 @@ function getLeadLabel(lead?: Lead) {
 }
 
 function getMeetingStatusLabel(value: string) {
-  if (value === "NÃ£o Compareceu") return "Não compareceu";
+  if (value === "Não Compareceu") return "Não compareceu";
   return value;
 }
 

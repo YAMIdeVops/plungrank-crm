@@ -46,8 +46,7 @@ class MeetingService(BaseService):
         if meeting_datetime.date() < lead_date:
             raise AppError("Data da reuniao nao pode ser menor que a data de cadastro do lead.")
 
-        status = normalize_text(payload["status_reuniao"])
-        validate_enum(status, MEETING_STATUS, "status_reuniao")
+        status = validate_enum(normalize_text(payload["status_reuniao"]), MEETING_STATUS, "status_reuniao")
         self._validate_future_meeting_status(meeting_datetime, status)
 
         response = self.db.fetch_one(
@@ -80,8 +79,7 @@ class MeetingService(BaseService):
 
         next_status = current_status
         if "status_reuniao" in payload:
-            new_status = normalize_text(payload["status_reuniao"])
-            validate_enum(new_status, MEETING_STATUS, "status_reuniao")
+            new_status = validate_enum(normalize_text(payload["status_reuniao"]), MEETING_STATUS, "status_reuniao")
             if current_status == "Realizada" and new_status in {"Remarcada", "Não Compareceu"}:
                 raise AppError("Reuniao realizada nao pode retroceder.")
             if current_status == "Não Compareceu" and new_status == "Realizada":

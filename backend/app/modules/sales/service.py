@@ -40,28 +40,27 @@ class SaleService(BaseService):
         lead = self.lead_service.get_lead(payload["id_lead"])
         self.lead_service.ensure_allows_new_related_records(lead)
         if not self.attempt_service.has_attempt_for_lead(lead["id_lead"]):
-            raise AppError("So e possivel registrar venda apos existir tentativa de contato.")
+            raise AppError("Só é possível registrar venda após existir tentativa de contato.")
 
         service = self.db.fetch_optional("select * from servicos where id_servico = %s limit 1", [payload["id_servico"]])
         if not service:
-            raise AppError("Servico informado nao existe.")
+            raise AppError("Serviço informado não existe.")
 
         sale_date = parse_date(payload["data_venda"], "data_venda")
         ensure_not_future(sale_date, "data_venda")
         lead_date = parse_date(lead["data_cadastro"], "data_cadastro")
         if sale_date < lead_date:
-            raise AppError("Data da venda nao pode ser menor que a data de cadastro do lead.")
+            raise AppError("Data da venda não pode ser menor que a data de cadastro do lead.")
 
-        origem_fechamento = normalize_text(payload["origem_fechamento"])
-        validate_enum(origem_fechamento, SALES_ORIGINS, "origem_fechamento")
+        origem_fechamento = validate_enum(normalize_text(payload["origem_fechamento"]), SALES_ORIGINS, "origem_fechamento")
 
         meeting_id = payload.get("id_reuniao")
         if meeting_id:
             meeting = self.db.fetch_optional("select * from reuniao where id_reuniao = %s limit 1", [meeting_id])
             if not meeting:
-                raise AppError("Reuniao informada nao existe.")
+                raise AppError("Reunião informada não existe.")
             if meeting["id_lead"] != lead["id_lead"]:
-                raise AppError("Reuniao informada deve pertencer ao mesmo lead da venda.")
+                raise AppError("Reunião informada deve pertencer ao mesmo lead da venda.")
 
         response = self.db.fetch_one(
             """
@@ -86,24 +85,24 @@ class SaleService(BaseService):
     def update_sale(self, sale_id: int, payload: dict) -> dict:
         sale = self.get_one("id_venda", sale_id)
         immutable_messages = {
-            "id_lead": "O lead da venda nao pode ser alterado.",
-            "id_servico": "O servico da venda nao pode ser alterado.",
-            "origem_fechamento": "A origem da venda nao pode ser alterada.",
-            "valor_venda": "O valor da venda nao pode ser alterado.",
-            "data_venda": "A data da venda nao pode ser alterada.",
-            "id_reuniao": "A reuniao vinculada da venda nao pode ser alterada.",
+            "id_lead": "O lead da venda não pode ser alterado.",
+            "id_servico": "O serviço da venda não pode ser alterado.",
+            "origem_fechamento": "A origem da venda não pode ser alterada.",
+            "valor_venda": "O valor da venda não pode ser alterado.",
+            "data_venda": "A data da venda não pode ser alterada.",
+            "id_reuniao": "A reunião vinculada da venda não pode ser alterada.",
         }
 
         for field, message in immutable_messages.items():
             if field in payload and payload[field] != sale.get(field):
                 raise AppError(message)
 
-        raise AppError("Nenhuma alteracao permitida para vendas registradas.")
+        raise AppError("Nenhuma alteração permitida para vendas registradas.")
 
     def delete_sale(self, sale_id: int) -> None:
         sale = self.get_one("id_venda", sale_id)
         lead = self.lead_service.get_lead(sale["id_lead"])
         if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
-            raise AppError("Venda registrada so pode ser excluida quando o lead estiver Inativo.")
+            raise AppError("Venda registrada só pode ser excluída quando o lead estiver Inativo.")
         self.db.execute("delete from vendas where id_venda = %s", [sale_id])
         self.lead_service.refresh_situation_from_history(sale["id_lead"])

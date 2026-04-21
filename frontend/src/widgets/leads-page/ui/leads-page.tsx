@@ -10,10 +10,11 @@ import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
 
 const LEAD_STATUS_NEW = "Novo";
-const LEAD_STATUS_PROSPECTION = "Em prospecÃ§Ã£o";
+const LEAD_STATUS_PROSPECTION = "Em prospecção";
 const LEAD_STATUS_CLIENT = "Cliente";
 const LEAD_STATUS_INACTIVE = "Inativo";
-const SITE_NO = "NÃƒO";
+const SITE_YES = "SIM";
+const SITE_NO = "NÃO";
 
 const initialForm = {
   nome_contato: "",
@@ -24,7 +25,7 @@ const initialForm = {
   fonte_lead: "Google Maps",
   situacao: LEAD_STATUS_NEW,
   estado: "",
-  tem_site: "SIM",
+  tem_site: SITE_YES,
   data_cadastro: "",
 };
 
@@ -48,7 +49,7 @@ const leadSituationOptions = [
 ];
 
 const siteOptions = [
-  { value: "SIM", label: "Sim" },
+  { value: SITE_YES, label: "Sim" },
   { value: SITE_NO, label: "Não" },
 ];
 

@@ -19,7 +19,7 @@ const initialForm = {
 const meetingStatuses = [
   { value: "Agendada", label: "Agendada" },
   { value: "Realizada", label: "Realizada" },
-  { value: "NÃ£o Compareceu", label: "Não compareceu" },
+  { value: "Não Compareceu", label: "Não compareceu" },
   { value: "Remarcada", label: "Remarcada" },
 ];
 

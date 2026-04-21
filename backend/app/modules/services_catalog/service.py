@@ -16,7 +16,7 @@ class ServiceCatalogService(BaseService):
         nome_servico = normalize_text(payload["nome_servico"])
         result = self.db.fetch_optional("select id_servico from servicos where servico = %s limit 1", [nome_servico])
         if result:
-            raise AppError("Nome do serviÃƒÂ§o jÃƒÂ¡ cadastrado.")
+            raise AppError("Nome do serviço já cadastrado.")
 
         inserted = self.db.fetch_one(
             "insert into servicos (servico, valor) values (%s, %s) returning *",
