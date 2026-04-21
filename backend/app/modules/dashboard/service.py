@@ -8,43 +8,55 @@ class DashboardService:
     def get_metrics(self, filters: dict) -> dict:
         period_start = filters.get("periodo_inicio")
         period_end = filters.get("periodo_fim")
+        row = self.db.fetch_one(
+            """
+            select
+                (select count(*) from leads where (%s is null or data_cadastro >= %s) and (%s is null or data_cadastro <= %s)) as total_leads,
+                (
+                    select count(*)
+                    from leads
+                    where (%s is null or data_cadastro >= %s)
+                      and (%s is null or data_cadastro <= %s)
+                      and situacao = %s
+                ) as total_leads_prospectados,
+                (
+                    select count(*)
+                    from reuniao
+                    where (%s is null or data_reuniao >= %s)
+                      and (%s is null or data_reuniao <= %s)
+                      and status_reuniao = %s
+                ) as total_reunioes_realizadas,
+                (
+                    select count(*)
+                    from vendas
+                    where (%s is null or data_venda >= %s)
+                      and (%s is null or data_venda <= %s)
+                ) as total_vendas_realizadas
+            """,
+            [
+                period_start,
+                period_start,
+                period_end,
+                period_end,
+                period_start,
+                period_start,
+                period_end,
+                period_end,
+                "Em prospecÃ§Ã£o",
+                period_start,
+                period_start,
+                period_end,
+                period_end,
+                "Realizada",
+                period_start,
+                period_start,
+                period_end,
+                period_end,
+            ],
+        )
         return {
-            "total_leads": self._count("leads", period_start, period_end, "data_cadastro"),
-            "total_leads_prospectados": self._count(
-                "leads",
-                period_start,
-                period_end,
-                "data_cadastro",
-                {"situacao": "Em prospecção"},
-            ),
-            "total_reunioes_realizadas": self._count(
-                "reuniao",
-                period_start,
-                period_end,
-                "data_reuniao",
-                {"status_reuniao": "Realizada"},
-            ),
-            "total_vendas_realizadas": self._count("vendas", period_start, period_end, "data_venda"),
+            "total_leads": int(row["total_leads"] or 0),
+            "total_leads_prospectados": int(row["total_leads_prospectados"] or 0),
+            "total_reunioes_realizadas": int(row["total_reunioes_realizadas"] or 0),
+            "total_vendas_realizadas": int(row["total_vendas_realizadas"] or 0),
         }
-
-    def _count(
-        self,
-        table: str,
-        period_start: str | None,
-        period_end: str | None,
-        field: str,
-        equals: dict | None = None,
-    ) -> int:
-        sql = f"select count(*) as total from {table} where 1=1"
-        params: list = []
-        if period_start:
-            sql += f" and {field} >= %s"
-            params.append(period_start)
-        if period_end:
-            sql += f" and {field} <= %s"
-            params.append(period_end)
-        if equals:
-            for key, value in equals.items():
-                sql += f" and {key} = %s"
-                params.append(value)
-        return int(self.db.scalar(sql, params) or 0)

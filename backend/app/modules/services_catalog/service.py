@@ -16,7 +16,7 @@ class ServiceCatalogService(BaseService):
         nome_servico = normalize_text(payload["nome_servico"])
         result = self.db.fetch_optional("select id_servico from servicos where servico = %s limit 1", [nome_servico])
         if result:
-            raise AppError("Nome do serviÃ§o jÃ¡ cadastrado.")
+            raise AppError("Nome do serviÃƒÂ§o jÃƒÂ¡ cadastrado.")
 
         inserted = self.db.fetch_one(
             "insert into servicos (servico, valor) values (%s, %s) returning *",
@@ -38,16 +38,18 @@ class ServiceCatalogService(BaseService):
         return self._serialize_service(updated)
 
     def delete_service(self, service_id: int) -> None:
-        linked_sales = self.db.fetch_all(
+        linked_active_sale = self.db.fetch_optional(
             """
-            select v.id_venda, l.situacao
+            select v.id_venda
             from vendas v
             join leads l on l.id_lead = v.id_lead
             where v.id_servico = %s
+              and l.situacao <> %s
+            limit 1
             """,
-            [service_id],
+            [service_id, "Inativo"],
         )
-        if any(canonical_text_key(item["situacao"]) != canonical_text_key("Inativo") for item in linked_sales):
+        if linked_active_sale:
             raise AppError("Servico vendido so pode ser excluido quando todos os leads vinculados estiverem Inativos.")
         self.db.execute("delete from servicos where id_servico = %s", [service_id])
 

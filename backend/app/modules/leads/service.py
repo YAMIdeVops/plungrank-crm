@@ -1,7 +1,7 @@
 from app.core.constants import LEAD_SITUATIONS, LEAD_SOURCES
 from app.core.errors import AppError
 from app.core.formatters import canonical_text_key, normalize_phone, normalize_text
-from app.core.validators import ensure_not_future, parse_date, validate_state, require_fields
+from app.core.validators import ensure_not_future, parse_date, require_fields, validate_state
 from app.services.base_service import BaseService
 
 
@@ -65,10 +65,10 @@ class LeadService(BaseService):
             duplicate_instagram = self._find_duplicate_instagram(instagram)
 
         situacao = self._resolve_lead_situation(payload.get("situacao", "Novo"))
-        if canonical_text_key(situacao) == canonical_text_key("Em prospecção"):
-            raise AppError("Lead só pode ser criado como Em prospecção após existir tentativa de contato.")
+        if canonical_text_key(situacao) == canonical_text_key("Em prospecÃ§Ã£o"):
+            raise AppError("Lead sÃ³ pode ser criado como Em prospecÃ§Ã£o apÃ³s existir tentativa de contato.")
         if canonical_text_key(situacao) == canonical_text_key("Cliente"):
-            raise AppError("Lead só pode ser criado como Cliente após existir venda registrada.")
+            raise AppError("Lead sÃ³ pode ser criado como Cliente apÃ³s existir venda registrada.")
 
         response = self.db.fetch_one(
             """
@@ -93,7 +93,7 @@ class LeadService(BaseService):
             ],
         )
         if duplicate_instagram:
-            response["alerta_instagram"] = "Instagram já existe em outro lead. Cadastro permitido com alerta."
+            response["alerta_instagram"] = "Instagram jÃ¡ existe em outro lead. Cadastro permitido com alerta."
         return response
 
     def update_lead(self, lead_id: int, payload: dict) -> dict:
@@ -127,7 +127,7 @@ class LeadService(BaseService):
     def delete_lead(self, lead_id: int) -> None:
         lead = self.get_lead(lead_id)
         if canonical_text_key(lead["situacao"]) != canonical_text_key("Inativo"):
-            raise AppError("Lead só pode ser excluído quando estiver Inativo.")
+            raise AppError("Lead sÃ³ pode ser excluÃ­do quando estiver Inativo.")
         with self.db.connection() as conn, conn.cursor() as cur:
             cur.execute("delete from vendas where id_lead = %s", [lead_id])
             cur.execute("delete from reuniao where id_lead = %s", [lead_id])
@@ -143,71 +143,78 @@ class LeadService(BaseService):
         if canonical_text_key(lead["situacao"]) == canonical_text_key("Inativo"):
             return
 
-        if self.has_sale(lead_id):
+        history = self.get_history_snapshot(lead_id)
+        if history["has_sale"]:
             self.update_situation(lead_id, "Cliente")
             return
 
-        latest_attempt = self.db.fetch_optional(
-            """
-            select status
-            from tentativa_contato
-            where id_lead = %s
-            order by data_tentativa desc, id_tentativa desc
-            limit 1
-            """,
-            [lead_id],
-        )
-        if latest_attempt:
-            if canonical_text_key(latest_attempt["status"]) == canonical_text_key("Não tem interesse"):
+        if history["latest_attempt_status"]:
+            if canonical_text_key(history["latest_attempt_status"]) == canonical_text_key("NÃ£o tem interesse"):
                 self.update_situation(lead_id, "Inativo")
                 return
-            self.update_situation(lead_id, "Em prospecção")
+            self.update_situation(lead_id, "Em prospecÃ§Ã£o")
             return
 
         self.update_situation(lead_id, "Novo")
 
     def has_sale(self, lead_id: int) -> bool:
-        return bool(self.db.fetch_optional("select id_venda from vendas where id_lead = %s limit 1", [lead_id]))
+        return self.get_history_snapshot(lead_id)["has_sale"]
 
     def has_attempt(self, lead_id: int) -> bool:
-        return bool(
-            self.db.fetch_optional(
-                "select id_tentativa from tentativa_contato where id_lead = %s limit 1",
-                [lead_id],
-            )
+        return self.get_history_snapshot(lead_id)["has_attempt"]
+
+    def get_history_snapshot(self, lead_id: int) -> dict:
+        result = self.db.fetch_one(
+            """
+            select
+                exists(select 1 from tentativa_contato where id_lead = %s) as has_attempt,
+                exists(select 1 from vendas where id_lead = %s) as has_sale,
+                (
+                    select status
+                    from tentativa_contato
+                    where id_lead = %s
+                    order by data_tentativa desc, id_tentativa desc
+                    limit 1
+                ) as latest_attempt_status
+            """,
+            [lead_id, lead_id, lead_id],
         )
+        return {
+            "has_attempt": bool(result["has_attempt"]),
+            "has_sale": bool(result["has_sale"]),
+            "latest_attempt_status": result["latest_attempt_status"],
+        }
 
     def ensure_allows_new_related_records(self, lead: dict) -> None:
         if canonical_text_key(lead["situacao"]) == canonical_text_key("Inativo"):
-            raise AppError("Lead inativo não pode receber novos registros de tentativa, reunião ou venda.")
+            raise AppError("Lead inativo nÃ£o pode receber novos registros de tentativa, reuniÃ£o ou venda.")
 
     def _ensure_unique_phone(self, phone: str) -> None:
         result = self.db.fetch_optional("select id_lead from leads where telefone = %s limit 1", [phone])
         if result:
-            raise AppError("Telefone já cadastrado.")
+            raise AppError("Telefone jÃ¡ cadastrado.")
 
     def _find_duplicate_instagram(self, instagram: str):
         return self.db.fetch_optional("select id_lead from leads where instagram = %s limit 1", [instagram])
 
     def _validate_manual_situation_change(self, lead: dict, new_status: str) -> None:
-        has_attempt = self.has_attempt(lead["id_lead"])
-        has_sale = self.has_sale(lead["id_lead"])
-        if has_sale and canonical_text_key(new_status) in {
+        history = self.get_history_snapshot(lead["id_lead"])
+        if history["has_sale"] and canonical_text_key(new_status) in {
             canonical_text_key("Novo"),
-            canonical_text_key("Em prospecção"),
+            canonical_text_key("Em prospecÃ§Ã£o"),
         }:
-            raise AppError("Lead com venda registrada não pode voltar para essa situação.")
-        if canonical_text_key(new_status) == canonical_text_key("Em prospecção") and not has_attempt:
-            raise AppError("Lead só pode virar Em prospecção quando existir tentativa de contato.")
-        if canonical_text_key(new_status) == canonical_text_key("Cliente") and not has_sale:
-            raise AppError("Lead só pode virar Cliente quando existir uma venda.")
+            raise AppError("Lead com venda registrada nÃ£o pode voltar para essa situaÃ§Ã£o.")
+        if canonical_text_key(new_status) == canonical_text_key("Em prospecÃ§Ã£o") and not history["has_attempt"]:
+            raise AppError("Lead sÃ³ pode virar Em prospecÃ§Ã£o quando existir tentativa de contato.")
+        if canonical_text_key(new_status) == canonical_text_key("Cliente") and not history["has_sale"]:
+            raise AppError("Lead sÃ³ pode virar Cliente quando existir uma venda.")
 
     def _resolve_allowed_option(self, value: str, allowed: set[str], field_name: str) -> str:
         candidate_key = canonical_text_key(value)
         for option in allowed:
             if canonical_text_key(option) == candidate_key:
                 return option
-        raise AppError(f"Valor inválido para {field_name}.")
+        raise AppError(f"Valor invÃ¡lido para {field_name}.")
 
     def _resolve_lead_source(self, value: str) -> str:
         return self._resolve_allowed_option(normalize_text(value), LEAD_SOURCES, "fonte_lead")
@@ -219,6 +226,6 @@ class LeadService(BaseService):
         normalized_key = canonical_text_key(value)
         if normalized_key == canonical_text_key("SIM"):
             return "SIM"
-        if normalized_key in {canonical_text_key("NÃO"), canonical_text_key("NAO")}:
-            return "NÃO"
-        raise AppError("tem_site deve ser SIM ou NÃO.")
+        if normalized_key in {canonical_text_key("NÃƒO"), canonical_text_key("NAO")}:
+            return "NÃƒO"
+        raise AppError("tem_site deve ser SIM ou NÃƒO.")
