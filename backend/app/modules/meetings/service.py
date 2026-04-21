@@ -109,6 +109,5 @@ class MeetingService(BaseService):
             self.db.execute("delete from reuniao where id_reuniao = %s", [meeting_id])
 
     def _validate_future_meeting_status(self, meeting_datetime: datetime, status: str) -> None:
-        current_date = datetime.now(meeting_datetime.tzinfo).date()
-        if meeting_datetime.date() > current_date and status != "Agendada":
+        if meeting_datetime.date() > datetime.now(meeting_datetime.tzinfo).date() and status != "Agendada":
             raise AppError("Reunioes futuras devem permanecer como Agendada.")

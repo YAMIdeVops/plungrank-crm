@@ -41,7 +41,7 @@ function toDateTimeLocal(value: string) {
 
 function fromDateTimeLocal(value: string) {
   if (!value) return "";
-  return new Date(value).toISOString();
+  return `${value}:00`;
 }
 
 export default function MeetingsPage() {
