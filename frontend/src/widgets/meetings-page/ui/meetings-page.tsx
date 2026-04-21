@@ -32,16 +32,16 @@ function getMeetingStatusLabel(value: string) {
   return meetingStatuses.find((status) => status.value === value)?.label ?? value;
 }
 
-function toDateTimeLocal(value: string) {
+function toDateInput(value: string) {
   if (!value) return "";
   const date = new Date(value);
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 16);
+  return offsetDate.toISOString().slice(0, 10);
 }
 
-function fromDateTimeLocal(value: string) {
-  if (!value) return "";
-  return `${value}:00`;
+function formatMeetingDate(value: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("pt-BR");
 }
 
 export default function MeetingsPage() {
@@ -93,7 +93,7 @@ export default function MeetingsPage() {
   function startEdit(meeting: Meeting) {
     setForm({
       id_lead: String(meeting.id_lead),
-      data_reuniao: toDateTimeLocal(meeting.data_reuniao),
+      data_reuniao: toDateInput(meeting.data_reuniao),
       status_reuniao: meeting.status_reuniao,
     });
     setEditingMeetingId(meeting.id_reuniao);
@@ -111,7 +111,7 @@ export default function MeetingsPage() {
         const response = await apiFetch<Meeting>(`/meetings/${editingMeetingId}`, {
           method: "PATCH",
           body: JSON.stringify({
-            data_reuniao: fromDateTimeLocal(form.data_reuniao),
+            data_reuniao: form.data_reuniao,
             status_reuniao: form.status_reuniao,
           }),
         });
@@ -122,7 +122,7 @@ export default function MeetingsPage() {
           body: JSON.stringify({
             ...form,
             id_lead: Number(form.id_lead),
-            data_reuniao: fromDateTimeLocal(form.data_reuniao),
+            data_reuniao: form.data_reuniao,
           }),
         });
         setFeedback(response.notification ?? "Reunião registrada com sucesso.");
@@ -161,8 +161,12 @@ export default function MeetingsPage() {
     if (canManage) {
       row.push(
         <div className="table-actions" key={`actions-${meeting.id_reuniao}`}>
-          <button className="ghost-button" type="button" onClick={() => startEdit(meeting)}>Editar</button>
-          <button className="danger-button" type="button" onClick={() => void handleDelete(meeting)}>Excluir</button>
+          <button className="ghost-button" type="button" onClick={() => startEdit(meeting)}>
+            Editar
+          </button>
+          <button className="danger-button" type="button" onClick={() => void handleDelete(meeting)}>
+            Excluir
+          </button>
         </div>,
       );
     }
@@ -170,7 +174,7 @@ export default function MeetingsPage() {
     row.push(
       meeting.id_reuniao,
       getLeadLabel(leadMap.get(meeting.id_lead)),
-      new Date(meeting.data_reuniao).toLocaleString("pt-BR"),
+      formatMeetingDate(meeting.data_reuniao),
       getMeetingStatusLabel(meeting.status_reuniao),
     );
     return row;
@@ -193,22 +197,39 @@ export default function MeetingsPage() {
             <div className="form-section-grid">
               <label className="field">
                 <span className="field-label">Lead</span>
-                <select value={form.id_lead} onChange={(event) => setForm({ ...form, id_lead: event.target.value })} disabled={Boolean(editingMeetingId)} required>
+                <select
+                  value={form.id_lead}
+                  onChange={(event) => setForm({ ...form, id_lead: event.target.value })}
+                  disabled={Boolean(editingMeetingId)}
+                  required
+                >
                   <option value="">Selecione um lead</option>
                   {leads.map((lead) => (
-                    <option key={lead.id_lead} value={lead.id_lead}>{getLeadLabel(lead)}</option>
+                    <option key={lead.id_lead} value={lead.id_lead}>
+                      {getLeadLabel(lead)}
+                    </option>
                   ))}
                 </select>
               </label>
               <label className="field">
-                <span className="field-label">Data e hora</span>
-                <input type="datetime-local" value={form.data_reuniao} onChange={(event) => setForm({ ...form, data_reuniao: event.target.value })} required />
+                <span className="field-label">Data</span>
+                <input
+                  type="date"
+                  value={form.data_reuniao}
+                  onChange={(event) => setForm({ ...form, data_reuniao: event.target.value })}
+                  required
+                />
               </label>
               <label className="field">
                 <span className="field-label">Status</span>
-                <select value={form.status_reuniao} onChange={(event) => setForm({ ...form, status_reuniao: event.target.value })}>
+                <select
+                  value={form.status_reuniao}
+                  onChange={(event) => setForm({ ...form, status_reuniao: event.target.value })}
+                >
                   {meetingStatuses.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -216,8 +237,18 @@ export default function MeetingsPage() {
           </div>
 
           <div className="form-actions field-span-2">
-            <button className="primary-button" type="submit">{editingMeetingId ? "Salvar" : "Registrar reunião"}</button>
-            <button className="secondary-button" type="button" onClick={() => { resetFormState(); setError(""); setFeedback(""); }}>
+            <button className="primary-button" type="submit">
+              {editingMeetingId ? "Salvar" : "Registrar reunião"}
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                resetFormState();
+                setError("");
+                setFeedback("");
+              }}
+            >
               {editingMeetingId ? "Cancelar" : "Limpar"}
             </button>
           </div>
@@ -236,27 +267,52 @@ export default function MeetingsPage() {
           <div className="form-section-grid">
             <label className="field">
               <span className="field-label">Status</span>
-              <select value={filters.status_reuniao} onChange={(event) => setFilters({ ...filters, status_reuniao: event.target.value })}>
+              <select
+                value={filters.status_reuniao}
+                onChange={(event) => setFilters({ ...filters, status_reuniao: event.target.value })}
+              >
                 <option value="">Todos</option>
                 {meetingStatuses.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
                 ))}
               </select>
             </label>
             <label className="field">
               <span className="field-label">Período inicial</span>
-              <input type="date" value={filters.periodo_inicio} onChange={(event) => setFilters({ ...filters, periodo_inicio: event.target.value })} />
+              <input
+                type="date"
+                value={filters.periodo_inicio}
+                onChange={(event) => setFilters({ ...filters, periodo_inicio: event.target.value })}
+              />
             </label>
             <label className="field">
               <span className="field-label">Período final</span>
-              <input type="date" value={filters.periodo_fim} onChange={(event) => setFilters({ ...filters, periodo_fim: event.target.value })} />
+              <input
+                type="date"
+                value={filters.periodo_fim}
+                onChange={(event) => setFilters({ ...filters, periodo_fim: event.target.value })}
+              />
             </label>
           </div>
         </div>
 
         <div className="form-actions">
-          <button className="primary-button" type="button" onClick={() => void loadItems()}>Aplicar</button>
-          <button className="secondary-button" type="button" onClick={() => { const cleared = { status_reuniao: "", periodo_inicio: "", periodo_fim: "" }; setFilters(cleared); void loadItems(cleared); }}>Limpar</button>
+          <button className="primary-button" type="button" onClick={() => void loadItems()}>
+            Aplicar
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              const cleared = { status_reuniao: "", periodo_inicio: "", periodo_fim: "" };
+              setFilters(cleared);
+              void loadItems(cleared);
+            }}
+          >
+            Limpar
+          </button>
         </div>
       </section>
 
@@ -264,7 +320,13 @@ export default function MeetingsPage() {
         <div className="panel-header">
           <h3>Listagem</h3>
         </div>
-        <DataTable caption={`${items.length} reunião(ões)`} headers={tableHeaders} rows={rows} loading={loading} emptyMessage="Nenhuma reunião encontrada." />
+        <DataTable
+          caption={`${items.length} reunião(ões)`}
+          headers={tableHeaders}
+          rows={rows}
+          loading={loading}
+          emptyMessage="Nenhuma reunião encontrada."
+        />
       </section>
     </>
   );

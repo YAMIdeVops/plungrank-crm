@@ -25,10 +25,10 @@ class MeetingService(BaseService):
             sql += " and status_reuniao = %s"
             params.append(filters["status_reuniao"])
         if filters.get("periodo_inicio"):
-            sql += " and data_reuniao >= %s"
+            sql += " and data_reuniao::date >= %s::date"
             params.append(filters["periodo_inicio"])
         if filters.get("periodo_fim"):
-            sql += " and data_reuniao <= %s"
+            sql += " and data_reuniao::date <= %s::date"
             params.append(filters["periodo_fim"])
 
         sql += " order by data_reuniao asc, id_reuniao asc"
@@ -70,8 +70,11 @@ class MeetingService(BaseService):
             if current_status in FINAL_MEETING_STATUS:
                 if "status_reuniao" in payload and payload["status_reuniao"] != current_status:
                     raise AppError("Status de reuniao finalizada nao pode ser alterado.")
-                if "data_reuniao" in payload and payload["data_reuniao"] != meeting["data_reuniao"]:
-                    raise AppError("Data de reuniao finalizada nao pode ser alterada.")
+                if "data_reuniao" in payload:
+                    requested_date = parse_datetime(payload["data_reuniao"], "data_reuniao").date()
+                    current_date = parse_datetime(meeting["data_reuniao"], "data_reuniao").date() if isinstance(meeting["data_reuniao"], str) else meeting["data_reuniao"].date()
+                    if requested_date != current_date:
+                        raise AppError("Data de reuniao finalizada nao pode ser alterada.")
 
             update_data = {}
             next_datetime = meeting["data_reuniao"]
