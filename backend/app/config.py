@@ -10,6 +10,9 @@ load_dotenv()
 @dataclass(frozen=True)
 class Settings:
     database_url: str
+    database_pool_min_size: int
+    database_pool_max_size: int
+    database_pool_timeout: int
     supabase_url: str
     supabase_key: str
     supabase_service_role_key: str
@@ -23,6 +26,9 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         database_url=os.getenv("DATABASE_URL", ""),
+        database_pool_min_size=int(os.getenv("DATABASE_POOL_MIN_SIZE", "1")),
+        database_pool_max_size=int(os.getenv("DATABASE_POOL_MAX_SIZE", "10")),
+        database_pool_timeout=int(os.getenv("DATABASE_POOL_TIMEOUT", "30")),
         supabase_url=os.getenv("SUPABASE_URL", ""),
         supabase_key=os.getenv("SUPABASE_KEY", ""),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
