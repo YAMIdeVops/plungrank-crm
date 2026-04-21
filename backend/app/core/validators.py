@@ -1,9 +1,13 @@
 from datetime import date, datetime
 import re
+from zoneinfo import ZoneInfo
 
 from .constants import BRAZILIAN_STATES
 from .errors import AppError
 from .formatters import canonical_text_key, normalize_text
+
+
+APP_TIMEZONE = ZoneInfo("America/Fortaleza")
 
 
 def require_fields(data: dict, fields: list[str]) -> None:
@@ -36,10 +40,15 @@ def parse_date(value, field_name: str) -> date:
 
 def parse_datetime(value, field_name: str) -> datetime:
     if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=APP_TIMEZONE)
         return value
     try:
         normalized = value.replace("Z", "+00:00")
-        return datetime.fromisoformat(normalized)
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=APP_TIMEZONE)
+        return parsed
     except (AttributeError, TypeError, ValueError) as exc:
         raise AppError(f"Data/hora invalida para {field_name}. Use ISO 8601.") from exc
 
