@@ -43,8 +43,7 @@ function toDateInput(value: string) {
   if (isoDate) return isoDate;
 
   const date = new Date(value);
-  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 10);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
 function formatMeetingDate(value: string) {
@@ -55,7 +54,9 @@ function formatMeetingDate(value: string) {
     return `${day}/${month}/${year}`;
   }
 
-  return new Date(value).toLocaleDateString("pt-BR");
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().slice(0, 10).split("-").reverse().join("/");
 }
 
 export default function MeetingsPage() {
