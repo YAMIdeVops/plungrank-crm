@@ -27,8 +27,11 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     }
   }
 
+  const method = options.method?.toUpperCase() ?? "GET";
+
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
+    cache: method === "GET" ? "no-store" : options.cache,
     headers,
   });
 

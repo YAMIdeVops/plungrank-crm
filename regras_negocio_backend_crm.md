@@ -94,13 +94,7 @@
 49. O sistema deve impedir que o `id_reuniao` vinculado a uma venda já registrada seja alterado depois.
 
 ## 14. Regras sobre serviços
-50. Um serviço usado em venda pode ser renomeado (mas mantendo o historico na tabela vendas)
-51. O valor padrão de um serviço pode ser alterado mesmo que ele já tenha sido usado em venda(mas mantendo o historico na tabela vendas)
-52. Alterações no nome ou no valor padrão do serviço não podem alterar vendas antigas já registradas(mas mantendo o historico na tabela vendas)
-53. O valor da tabela `servicos` representa o valor padrão atual do catálogo.
-54. O campo `valor_venda` da tabela `vendas` representa o valor histórico efetivamente fechado na venda.
-55. Alterações no catálogo de serviços devem afetar apenas vendas futuras, nunca o histórico de vendas já concluídas.
-
+- Um serviço que está vinculado a vendas não pode ter o nome nem o valor alterado
 
 ## Gerenciamento de usuário:
 - Autenticação (Login)

@@ -113,6 +113,26 @@ export default function SalesPage() {
     void loadAll();
   }, []);
 
+  useEffect(() => {
+    function refreshDependencies() {
+      void loadAll();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        refreshDependencies();
+      }
+    }
+
+    window.addEventListener("focus", refreshDependencies);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refreshDependencies);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [filters]);
+
   async function handleCreateSale(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");

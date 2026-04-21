@@ -1,6 +1,6 @@
 from app.core.errors import AppError
-from app.core.validators import ensure_positive_number, require_fields
 from app.core.formatters import normalize_text
+from app.core.validators import ensure_positive_number, require_fields
 from app.services.base_service import BaseService
 
 
@@ -26,15 +26,22 @@ class ServiceCatalogService(BaseService):
 
     def update_service(self, service_id: int, payload: dict) -> dict:
         with self.db.transaction():
+            current = self.get_one("id_servico", service_id)
+            has_sales = self._has_sales(service_id)
             update_data = {}
+
             if "nome_servico" in payload:
-                current = self.get_one("id_servico", service_id)
                 next_name = normalize_text(payload["nome_servico"])
-                if next_name != current["servico"] and self._has_sales(service_id):
+                if next_name != current["servico"] and has_sales:
                     raise AppError("Nome de servico vinculado a vendas nao pode ser alterado.")
                 update_data["servico"] = next_name
+
             if "valor" in payload:
-                update_data["valor"] = ensure_positive_number(payload["valor"], "valor")
+                next_value = ensure_positive_number(payload["valor"], "valor")
+                if next_value != current["valor"] and has_sales:
+                    raise AppError("Valor de servico vinculado a vendas nao pode ser alterado.")
+                update_data["valor"] = next_value
+
             updated = self.update_by_id("id_servico", service_id, update_data)
             return self._serialize_service(updated)
 

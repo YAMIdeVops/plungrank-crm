@@ -188,6 +188,10 @@ const RULE_VIOLATION_MESSAGES: RuleMessage[] = [
     message: "O nome de um serviço já usado em vendas não pode ser alterado. Cadastre um novo serviço com o nome desejado.",
   },
   {
+    match: "Valor de servico vinculado a vendas nao pode ser alterado.",
+    message: "O valor de um serviço já usado em vendas não pode ser alterado.",
+  },
+  {
     match: "Serviço vendido só pode ser excluído quando todos os leads vinculados estiverem Inativos.",
     message: "Este serviço só pode ser excluído quando todas as vendas vinculadas pertencerem a leads Inativos.",
   },

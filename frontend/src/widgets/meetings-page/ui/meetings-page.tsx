@@ -131,7 +131,12 @@ export default function MeetingsPage() {
       resetFormState();
       void loadItems();
     } catch (err) {
-      setError(getFriendlyErrorMessage(err, editingMeetingId ? "Não foi possível atualizar a reunião." : "Não foi possível registrar a reunião."));
+      setError(
+        getFriendlyErrorMessage(
+          err,
+          editingMeetingId ? "Não foi possível atualizar a reunião." : "Não foi possível registrar a reunião.",
+        ),
+      );
     }
   }
 
@@ -162,7 +167,12 @@ export default function MeetingsPage() {
       );
     }
 
-    row.push(meeting.id_reuniao, getLeadLabel(leadMap.get(meeting.id_lead)), new Date(meeting.data_reuniao).toLocaleString("pt-BR"), getMeetingStatusLabel(meeting.status_reuniao));
+    row.push(
+      meeting.id_reuniao,
+      getLeadLabel(leadMap.get(meeting.id_lead)),
+      new Date(meeting.data_reuniao).toLocaleString("pt-BR"),
+      getMeetingStatusLabel(meeting.status_reuniao),
+    );
     return row;
   });
 
