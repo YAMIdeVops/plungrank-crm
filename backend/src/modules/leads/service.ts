@@ -109,7 +109,7 @@ export class LeadService extends BaseService {
 
   async updateLead(leadId: number, payload: Record<string, unknown>) {
     return this.db.transaction(async () => {
-      const lead = await this.getLead(leadId);
+      const lead = (await this.getLead(leadId)) as Record<string, unknown>;
       const updateData: Record<string, unknown> = {};
 
       if ("data_cadastro" in payload) {
@@ -121,6 +121,13 @@ export class LeadService extends BaseService {
       }
       if ("nome_empresa" in payload) {
         updateData.nome_empresa = normalizeText(payload.nome_empresa);
+      }
+      if ("telefone" in payload) {
+        const nextPhone = normalizePhone(String(payload.telefone));
+        if (nextPhone !== String(lead.telefone)) {
+          await this.ensureUniquePhoneForUpdate(nextPhone, leadId);
+        }
+        updateData.telefone = nextPhone;
       }
       if ("instagram" in payload) {
         updateData.instagram = normalizeText(payload.instagram, "--") || "--";
@@ -232,6 +239,17 @@ export class LeadService extends BaseService {
   private async ensureUniquePhone(phone: string) {
     if (await this.db.exists("select 1 from leads where telefone = %s limit 1", [phone])) {
       throw new AppError("Telefone já cadastrado.");
+    }
+  }
+
+  private async ensureUniquePhoneForUpdate(phone: string, leadId: number) {
+    if (
+      await this.db.exists(
+        "select 1 from leads where telefone = %s and id_lead <> %s limit 1",
+        [phone, leadId],
+      )
+    ) {
+      throw new AppError("Telefone jÃ¡ cadastrado.");
     }
   }
 

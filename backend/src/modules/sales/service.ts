@@ -12,27 +12,36 @@ export class SaleService extends BaseService {
   private attemptService = new AttemptService();
 
   async listSales(filters: Record<string, string>) {
-    let sql = "select * from vendas where 1=1";
+    let sql = `
+      select
+        v.*,
+        s.servico as nome_servico,
+        r.data_reuniao
+      from vendas v
+      left join servicos s on s.id_servico = v.id_servico
+      left join reuniao r on r.id_reuniao = v.id_reuniao
+      where 1=1
+    `;
     const params: unknown[] = [];
 
     if (filters.origem_fechamento) {
-      sql += " and origem_fechamento = %s";
+      sql += " and v.origem_fechamento = %s";
       params.push(this.resolveOrigin(filters.origem_fechamento));
     }
     if (filters.id_servico) {
-      sql += " and id_servico = %s";
+      sql += " and v.id_servico = %s";
       params.push(Number(filters.id_servico));
     }
     if (filters.periodo_inicio) {
-      sql += " and data_venda >= %s";
+      sql += " and v.data_venda >= %s";
       params.push(filters.periodo_inicio);
     }
     if (filters.periodo_fim) {
-      sql += " and data_venda <= %s";
+      sql += " and v.data_venda <= %s";
       params.push(filters.periodo_fim);
     }
 
-    sql += " order by data_venda desc, id_venda desc";
+    sql += " order by v.data_venda desc, v.id_venda desc";
     return this.db.fetchAll(sql, params);
   }
 

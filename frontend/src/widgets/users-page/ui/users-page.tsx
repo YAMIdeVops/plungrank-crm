@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import type { AuthUser } from "@/entities/user/model/types";
 import { useAuth } from "@/features/auth/model/auth-provider";
 import { apiFetch } from "@/shared/api/http";
+import { formatDateDisplay } from "@/shared/lib/date-display";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
@@ -24,8 +25,7 @@ function getStatusLabel(value: string) {
 }
 
 function formatCreatedAt(value?: string) {
-  if (!value) return "-";
-  return new Date(value).toLocaleString("pt-BR");
+  return formatDateDisplay(value);
 }
 
 export default function UsersAdminPage() {

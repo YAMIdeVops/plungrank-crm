@@ -5,6 +5,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import type { Lead } from "@/entities/lead/model/types";
 import { useAuth } from "@/features/auth/model/auth-provider";
 import { apiFetch } from "@/shared/api/http";
+import { extractIsoDate } from "@/shared/lib/date-display";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
@@ -54,18 +55,7 @@ const siteOptions = [
 ];
 
 function normalizeDateInput(value: string) {
-  if (!value) return "";
-
-  const directMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
-  if (directMatch) return directMatch[0];
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-
-  const year = parsed.getUTCFullYear();
-  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return extractIsoDate(value);
 }
 
 function getLeadSituationLabel(value: string) {
@@ -91,7 +81,7 @@ export default function LeadsPage() {
   const tableHeaders = useMemo(() => {
     const headers: string[] = [];
     if (canManage) headers.push("Ações");
-    headers.push("ID", "Contato", "Empresa", "Telefone", "Situação", "Origem", "Nicho", "Site");
+    headers.push("Contato", "Empresa", "Telefone", "Situação", "Origem", "Nicho", "Site");
     return headers;
   }, [canManage]);
 
@@ -224,7 +214,6 @@ export default function LeadsPage() {
     }
 
     row.push(
-      lead.id_lead,
       lead.nome_contato,
       lead.nome_empresa,
       lead.telefone,

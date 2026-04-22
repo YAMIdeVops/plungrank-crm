@@ -8,6 +8,7 @@ import type { Sale } from "@/entities/sale/model/types";
 import type { ServiceItem } from "@/entities/service/model/types";
 import { useAuth } from "@/features/auth/model/auth-provider";
 import { apiFetch } from "@/shared/api/http";
+import { formatDateDisplay } from "@/shared/lib/date-display";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
@@ -42,7 +43,7 @@ function getMeetingStatusLabel(value: string) {
 
 function getMeetingLabel(meeting?: Meeting) {
   if (!meeting) return "Sem reunião";
-  return `${new Date(meeting.data_reuniao).toLocaleString("pt-BR")} • ${getMeetingStatusLabel(meeting.status_reuniao)}`;
+  return `${formatDateDisplay(meeting.data_reuniao)} • ${getMeetingStatusLabel(meeting.status_reuniao)}`;
 }
 
 function getSaleOriginLabel(value: string) {
@@ -67,13 +68,19 @@ export default function SalesPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const leadMap = useMemo(() => new Map(leads.map((lead) => [lead.id_lead, lead])), [leads]);
-  const serviceMap = useMemo(() => new Map(services.map((service) => [service.id_servico, service])), [services]);
-  const meetingMap = useMemo(() => new Map(meetings.map((meeting) => [meeting.id_reuniao, meeting])), [meetings]);
+  const leadMap = useMemo(() => new Map(leads.map((lead) => [Number(lead.id_lead), lead])), [leads]);
+  const serviceMap = useMemo(
+    () => new Map(services.map((service) => [Number(service.id_servico), service])),
+    [services],
+  );
+  const meetingMap = useMemo(
+    () => new Map(meetings.map((meeting) => [Number(meeting.id_reuniao), meeting])),
+    [meetings],
+  );
 
   const availableMeetings = useMemo(() => {
     if (!saleForm.id_lead) return meetings;
-    return meetings.filter((meeting) => String(meeting.id_lead) === saleForm.id_lead);
+    return meetings.filter((meeting) => Number(meeting.id_lead) === Number(saleForm.id_lead));
   }, [meetings, saleForm.id_lead]);
 
   const salesHeaders = useMemo(() => {
@@ -174,6 +181,13 @@ export default function SalesPage() {
 
   const salesRows = items.map((sale) => {
     const row: ReactNode[] = [];
+    const linkedMeeting = sale.id_reuniao ? meetingMap.get(Number(sale.id_reuniao)) : undefined;
+    const meetingLabel = linkedMeeting
+      ? getMeetingLabel(linkedMeeting)
+      : sale.data_reuniao
+        ? formatDateDisplay(sale.data_reuniao)
+        : "Sem reunião";
+
     if (canManage) {
       row.push(
         <div className="table-actions" key={`actions-sale-${sale.id_venda}`}>
@@ -183,12 +197,12 @@ export default function SalesPage() {
     }
     row.push(
       sale.id_venda,
-      getLeadLabel(leadMap.get(sale.id_lead)),
-      serviceMap.get(sale.id_servico)?.nome_servico ?? "-",
-      getMeetingLabel(sale.id_reuniao ? meetingMap.get(sale.id_reuniao) : undefined),
+      getLeadLabel(leadMap.get(Number(sale.id_lead))),
+      sale.nome_servico ?? serviceMap.get(Number(sale.id_servico))?.nome_servico ?? "-",
+      meetingLabel,
       getSaleOriginLabel(sale.origem_fechamento),
       formatCurrency(sale.valor_venda),
-      sale.data_venda,
+      formatDateDisplay(sale.data_venda),
     );
     return row;
   });

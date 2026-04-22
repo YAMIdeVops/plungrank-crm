@@ -7,6 +7,7 @@ import type { Lead } from "@/entities/lead/model/types";
 import { useAuth } from "@/features/auth/model/auth-provider";
 import { useNotifications } from "@/features/notifications/model/notification-provider";
 import { apiFetch } from "@/shared/api/http";
+import { extractIsoDate, formatDateDisplay } from "@/shared/lib/date-display";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
 import { PageHeader } from "@/shared/ui/page-header";
@@ -114,7 +115,7 @@ export default function AttemptsPage() {
   function startEdit(attempt: Attempt) {
     setForm({
       id_lead: String(attempt.id_lead),
-      data_tentativa: attempt.data_tentativa,
+      data_tentativa: extractIsoDate(attempt.data_tentativa),
       modalidade: attempt.modalidade,
       canal: attempt.canal,
       status: attempt.status,
@@ -189,7 +190,7 @@ export default function AttemptsPage() {
     row.push(
       attempt.id_tentativa,
       getLeadLabel(leadMap.get(attempt.id_lead)),
-      attempt.data_tentativa,
+      formatDateDisplay(attempt.data_tentativa),
       getOptionLabel(modalityOptions, attempt.modalidade),
       getOptionLabel(channelOptions, attempt.canal),
       getOptionLabel(attemptStatusOptions, attempt.status),

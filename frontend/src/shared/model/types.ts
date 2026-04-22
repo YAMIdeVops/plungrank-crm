@@ -55,4 +55,6 @@ export type Sale = {
   origem_fechamento: string;
   valor_venda: number;
   data_venda: string;
+  nome_servico?: string | null;
+  data_reuniao?: string | null;
 };
