@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "functions": {
-    "api/[[...route]].js": {
+    "api/[...route].js": {
       "maxDuration": 30
     }
   }
