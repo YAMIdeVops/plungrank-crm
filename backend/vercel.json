@@ -4,7 +4,7 @@
   "installCommand": "npm install",
   "functions": {
     "api/[[...route]].js": {
-      "runtime": "nodejs22.x",
+      "runtime": "nodejs20.x",
       "maxDuration": 30
     }
   }
