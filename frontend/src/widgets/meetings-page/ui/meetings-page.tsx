@@ -9,6 +9,7 @@ import { apiFetch } from "@/shared/api/http";
 import { extractIsoDate, formatDateDisplay } from "@/shared/lib/date-display";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
+import { LeadSearchSelect } from "@/shared/ui/lead-search-select";
 import { PageHeader } from "@/shared/ui/page-header";
 
 const initialForm = {
@@ -194,19 +195,15 @@ export default function MeetingsPage() {
             <div className="form-section-grid">
               <label className="field">
                 <span className="field-label">Lead</span>
-                <select
+                <LeadSearchSelect
+                  leads={leads}
                   value={form.id_lead}
-                  onChange={(event) => setForm({ ...form, id_lead: event.target.value })}
+                  onChange={(value) => setForm({ ...form, id_lead: value })}
                   disabled={Boolean(editingMeetingId)}
                   required
-                >
-                  <option value="">Selecione um lead</option>
-                  {leads.map((lead) => (
-                    <option key={lead.id_lead} value={lead.id_lead}>
-                      {getLeadLabel(lead)}
-                    </option>
-                  ))}
-                </select>
+                  searchPlaceholder="Pesquisar lead pelo nome"
+                  formatLeadLabel={getLeadLabel}
+                />
               </label>
               <label className="field">
                 <span className="field-label">Data</span>

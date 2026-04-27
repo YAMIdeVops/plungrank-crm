@@ -6,8 +6,10 @@ import type { Lead } from "@/entities/lead/model/types";
 import { useAuth } from "@/features/auth/model/auth-provider";
 import { apiFetch } from "@/shared/api/http";
 import { extractIsoDate } from "@/shared/lib/date-display";
+import { getLeadStatusTone } from "@/shared/lib/lead-status";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
+import { SearchInput } from "@/shared/ui/lead-search-select";
 import { PageHeader } from "@/shared/ui/page-header";
 
 const LEAD_STATUS_NEW = "Novo";
@@ -66,6 +68,19 @@ function getSiteLabel(value: string) {
   return siteOptions.find((option) => option.value === value)?.label ?? value;
 }
 
+function compareLeadNames(left: Lead, right: Lead) {
+  return left.nome_contato.localeCompare(right.nome_contato, "pt-BR", { sensitivity: "base" });
+}
+
+function renderLeadName(lead: Lead) {
+  return (
+    <span className="lead-status-label">
+      <span>{lead.nome_contato}</span>
+      <span className={`lead-status-dot ${getLeadStatusTone(lead.situacao)}`} />
+    </span>
+  );
+}
+
 export default function LeadsPage() {
   const { user } = useAuth();
   const canManage = user?.perfil === "ADMIN";
@@ -84,6 +99,8 @@ export default function LeadsPage() {
     headers.push("Contato", "Empresa", "Telefone", "Situação", "Origem", "Nicho", "Site");
     return headers;
   }, [canManage]);
+
+  const sortedItems = useMemo(() => [...items].sort(compareLeadNames), [items]);
 
   async function loadItems(nextFilters = filters) {
     setLoading(true);
@@ -198,7 +215,7 @@ export default function LeadsPage() {
     void loadItems(initialFilters);
   }
 
-  const rows = items.map((lead) => {
+  const rows = sortedItems.map((lead) => {
     const row: ReactNode[] = [];
     if (canManage) {
       row.push(
@@ -214,7 +231,7 @@ export default function LeadsPage() {
     }
 
     row.push(
-      lead.nome_contato,
+      renderLeadName(lead),
       lead.nome_empresa,
       lead.telefone,
       getLeadSituationLabel(lead.situacao),
@@ -335,7 +352,12 @@ export default function LeadsPage() {
             </label>
             <label className="field">
               <span className="field-label">Contato</span>
-              <input value={filters.nome_contato} onChange={(event) => setFilters({ ...filters, nome_contato: event.target.value })} />
+              <SearchInput
+                value={filters.nome_contato}
+                onChange={(event) => setFilters({ ...filters, nome_contato: event.target.value })}
+                placeholder="Pesquisar nome do lead"
+                aria-label="Pesquisar nome do lead"
+              />
             </label>
             <label className="field">
               <span className="field-label">Empresa</span>
@@ -385,7 +407,7 @@ export default function LeadsPage() {
         <div className="panel-header">
           <h3>Listagem</h3>
         </div>
-        <DataTable caption={`${items.length} lead(s)`} headers={tableHeaders} rows={rows} loading={loading} emptyMessage="Nenhum lead encontrado." />
+        <DataTable caption={`${sortedItems.length} lead(s)`} headers={tableHeaders} rows={rows} loading={loading} emptyMessage="Nenhum lead encontrado." />
       </section>
     </>
   );

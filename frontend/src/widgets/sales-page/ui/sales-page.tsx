@@ -11,6 +11,7 @@ import { apiFetch } from "@/shared/api/http";
 import { formatDateDisplay } from "@/shared/lib/date-display";
 import { getFriendlyErrorMessage } from "@/shared/lib/rule-violations";
 import { DataTable } from "@/shared/ui/data-table";
+import { LeadSearchSelect } from "@/shared/ui/lead-search-select";
 import { PageHeader } from "@/shared/ui/page-header";
 
 const CALL_ORIGIN = "Ligação";
@@ -224,12 +225,14 @@ export default function SalesPage() {
             <div className="form-section-grid">
               <label className="field">
                 <span className="field-label">Lead</span>
-                <select value={saleForm.id_lead} onChange={(event) => setSaleForm({ ...saleForm, id_lead: event.target.value, id_reuniao: "" })} required>
-                  <option value="">Selecione um lead</option>
-                  {leads.map((lead) => (
-                    <option key={lead.id_lead} value={lead.id_lead}>{getLeadLabel(lead)}</option>
-                  ))}
-                </select>
+                <LeadSearchSelect
+                  leads={leads}
+                  value={saleForm.id_lead}
+                  onChange={(value) => setSaleForm({ ...saleForm, id_lead: value, id_reuniao: "" })}
+                  required
+                  searchPlaceholder="Pesquisar lead pelo nome"
+                  formatLeadLabel={getLeadLabel}
+                />
               </label>
               <label className="field">
                 <span className="field-label">Serviço</span>

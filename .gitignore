@@ -10,3 +10,10 @@ coverage/
 
 image.png
 interface.png
+favicon.png
+logo/
+regras_bd.md
+regras_bd_user.md
+regras_negocio_backend_crm.md
+backend/tmp/
+backend/src/scripts/import-prospeccao.ts

@@ -21,7 +21,11 @@ export class DashboardService {
               from leads
               where (%s::date is null or data_cadastro >= %s::date)
                 and (%s::date is null or data_cadastro <= %s::date)
-                and situacao = %s
+                and exists (
+                    select 1
+                    from tentativa_contato
+                    where tentativa_contato.id_lead = leads.id_lead
+                )
           ) as total_leads_prospectados,
           (
               select count(*)
@@ -46,7 +50,6 @@ export class DashboardService {
         periodStart,
         periodEnd,
         periodEnd,
-        "Em prospecção",
         periodStart,
         periodStart,
         periodEnd,
